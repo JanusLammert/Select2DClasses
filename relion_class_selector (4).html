@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RELION 2D Class Selector</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+:root {
+  --navy:#023D6B; --burgundy:#470024; --gold:#DB9D47;
+  --navy-light:#0a5a9c; --navy-dark:#011f38;
+  --burgundy-light:#6b0035; --gold-light:#f0b86a;
+  --bg:#06121e; --surface:#0a1e2f; --surface2:#0f2740; --surface3:#162f4a;
+  --border:rgba(2,61,107,0.4); --text:#c8dde8; --text-dim:#6b8fa8; --text-muted:#3d5a6e;
+  --rejected:rgba(71,0,36,0.2); --radius:6px;
+  /* group colours — 0=unset, 1-8=groups, 9=rejected */
+  --g0:#3d5a6e; --g1:#DB9D47; --g2:#5aabde; --g3:#7ecb8f; --g4:#c97fd4;
+  --g5:#e07878; --g6:#78c4e0; --g7:#e0c178; --g8:#a0a0c8; --g9:#6b0035;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── WELCOME ─────────────────────────────── */
+#welcomeScreen{position:absolute;inset:0;z-index:500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
+#welcomeScreen.hidden{display:none;}
+.welcome-logo{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--gold);letter-spacing:0.12em;}
+.welcome-sub{font-size:13px;color:var(--text-dim);}
+.load-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;width:1080px;}
+.load-card{background:var(--surface);border:1.5px dashed var(--navy-light);border-radius:10px;padding:20px 16px;display:flex;flex-direction:column;align-items:center;gap:9px;transition:border-color 0.2s,background 0.2s;}
+.load-card.drag-over,.load-card:hover{border-color:var(--gold);background:rgba(219,157,71,0.04);}
+.load-card.card-optional{border-style:dashed;border-color:rgba(2,61,107,0.3);}
+.load-card-icon{font-size:28px;}
+.load-card-title{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.12em;color:var(--gold);text-transform:uppercase;}
+.load-card-desc{font-size:11px;color:var(--text-muted);text-align:center;line-height:1.7;}
+.optional-badge{font-size:9px;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;border:1px solid var(--border);padding:1px 6px;border-radius:3px;margin-top:-2px;}
+.file-pill{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid;width:100%;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pill-empty{border-color:var(--border);color:var(--text-muted);}
+.pill-ok{border-color:rgba(0,200,120,0.5);color:#0c9;background:rgba(0,200,120,0.06);}
+.log-box{width:860px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);min-height:52px;max-height:80px;overflow-y:auto;line-height:1.7;}
+.log-err{color:#e05585;} .log-ok{color:#0c9;} .log-info{color:var(--text-dim);}
+.welcome-actions{display:flex;gap:10px;}
+.progress-wrap{width:100%;height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;margin-top:4px;}
+.progress-fill{height:100%;background:var(--gold);border-radius:2px;transition:width 0.1s;width:0%;}
+
+/* ── TOPBAR ──────────────────────────────── */
+.topbar{display:flex;align-items:center;padding:0 16px;height:52px;background:var(--surface);border-bottom:1px solid var(--border);gap:12px;flex-shrink:0;}
+.logo{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--gold);letter-spacing:0.08em;display:flex;align-items:center;gap:8px;}
+.logo-badge{background:var(--navy);border:1px solid var(--navy-light);padding:2px 7px;border-radius:3px;font-size:10px;color:var(--text-dim);letter-spacing:0.12em;}
+.topbar-sep{width:1px;height:24px;background:var(--border);}
+.file-path{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mrc-badge{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 7px;border-radius:3px;border:1px solid;white-space:nowrap;}
+.mrc-ok{border-color:rgba(0,200,120,0.4);color:#0c9;background:rgba(0,200,120,0.07);}
+.mrc-warn{border-color:rgba(200,100,0,0.4);color:#e08030;background:rgba(200,100,0,0.07);}
+.topbar-actions{display:flex;gap:6px;margin-left:auto;}
+.btn{font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;padding:5px 13px;border-radius:var(--radius);border:1px solid;cursor:pointer;transition:all 0.15s;letter-spacing:0.02em;}
+.btn-ghost{background:transparent;border-color:var(--border);color:var(--text-dim);}
+.btn-ghost:hover{border-color:var(--navy-light);color:var(--text);}
+.btn-gold{background:var(--gold);border-color:var(--gold-light);color:var(--bg);font-weight:600;}
+.btn-gold:hover{background:var(--gold-light);}
+.btn-navy{background:var(--navy);border-color:var(--navy-light);color:#fff;}
+.btn-navy:hover{background:var(--navy-light);}
+.btn-danger{background:transparent;border-color:var(--burgundy-light);color:#c06;}
+.btn-danger:hover{background:rgba(71,0,36,0.2);}
+
+/* ── WORKSPACE ───────────────────────────── */
+.workspace{display:flex;flex:1;overflow:hidden;}
+
+/* ── SIDEBAR ─────────────────────────────── */
+.sidebar{width:248px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.sidebar-section{padding:12px 14px 10px;border-bottom:1px solid var(--border);}
+.sidebar-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;margin-bottom:9px;}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:7px 9px;}
+.stat-val{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;line-height:1;}
+.stat-val.gold{color:var(--gold);} .stat-val.navy{color:#5aabde;} .stat-val.burg{color:#e05585;} .stat-val.dim{color:var(--text-dim);}
+.stat-key{font-size:10px;color:var(--text-muted);margin-top:2px;}
+.slider-row{display:flex;align-items:center;gap:8px;margin-top:5px;}
+.slider-label{font-size:11px;color:var(--text-dim);flex:1;}
+.slider-val{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gold);min-width:36px;text-align:right;}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--surface3);border-radius:2px;outline:none;margin-top:3px;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:var(--gold);border-radius:50%;cursor:pointer;}
+.select-ctrl{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;padding:5px 8px;border-radius:var(--radius);outline:none;cursor:pointer;margin-top:5px;}
+.sidebar-bottom{margin-top:auto;padding:10px 14px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:5px;}
+
+/* ── GROUP PALETTE ───────────────────────── */
+.group-palette{display:flex;flex-direction:column;gap:4px;}
+.group-row{display:flex;align-items:center;gap:7px;padding:4px 6px;border-radius:5px;cursor:pointer;transition:background 0.12s;position:relative;}
+.group-row:hover{background:rgba(255,255,255,0.04);}
+.group-row.active-group{background:rgba(255,255,255,0.07);}
+.group-swatch{width:12px;height:12px;border-radius:3px;flex-shrink:0;border:1px solid rgba(255,255,255,0.15);}
+.group-key{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-muted);width:12px;text-align:center;}
+.group-name-input{background:transparent;border:none;outline:none;font-family:'Outfit',sans-serif;font-size:11px;color:var(--text-dim);flex:1;min-width:0;}
+.group-name-input:focus{color:var(--text);}
+.group-count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);min-width:22px;text-align:right;}
+.group-ptcl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-muted);min-width:30px;text-align:right;}
+.rejected-row{display:flex;align-items:center;gap:7px;padding:4px 6px;border-radius:5px;}
+.rejected-swatch{width:12px;height:12px;border-radius:3px;background:var(--burgundy-light);border:1px solid rgba(255,255,255,0.1);flex-shrink:0;}
+
+/* ── MAIN AREA ───────────────────────────── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.toolbar{display:flex;align-items:center;padding:7px 14px;background:var(--surface);border-bottom:1px solid var(--border);gap:7px;flex-shrink:0;}
+.toolbar-group{display:flex;gap:4px;}
+.toolbar-sep{width:1px;height:20px;background:var(--border);margin:0 3px;}
+.zoom-label{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);padding:0 5px;}
+.search-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;padding:3px 9px;gap:6px;margin-left:auto;}
+.search-box input{background:transparent;border:none;outline:none;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;width:140px;}
+.search-box input::placeholder{color:var(--text-muted);}
+
+/* hotkey hint bar */
+.hotkey-bar{display:flex;align-items:center;padding:3px 14px;background:rgba(2,31,56,0.6);border-bottom:1px solid var(--border);gap:4px;flex-shrink:0;overflow-x:auto;}
+.hk-chip{display:flex;align-items:center;gap:4px;padding:1px 7px 1px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);white-space:nowrap;}
+.hk-key{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;width:14px;height:14px;display:flex;align-items:center;justify-content:center;border-radius:3px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.07);}
+.hk-label{font-size:9px;color:var(--text-muted);}
+
+/* ── GRID ────────────────────────────────── */
+.grid-container{flex:1;overflow-y:auto;padding:14px;}
+.grid-container::-webkit-scrollbar{width:6px;}
+.grid-container::-webkit-scrollbar-track{background:transparent;}
+.grid-container::-webkit-scrollbar-thumb{background:rgba(2,61,107,0.55);border-radius:3px;}
+.grid-container::-webkit-scrollbar-thumb:hover{background:rgba(10,90,156,0.8);}
+.class-grid{display:grid;grid-template-columns:repeat(var(--cols,6),1fr);gap:7px;}
+
+.class-card{background:var(--surface2);border:2px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:border-color 0.12s,transform 0.1s,box-shadow 0.12s;position:relative;overflow:hidden;aspect-ratio:1;display:flex;flex-direction:column;}
+.class-card:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(0,0,0,0.5);z-index:2;}
+.class-card.rejected-card{opacity:0.45;}
+.class-card.rejected-card:hover{opacity:0.65;}
+.card-img{flex:1;background:#000;position:relative;overflow:hidden;}
+.class-canvas{width:100%;height:100%;display:block;image-rendering:pixelated;}
+.card-spinner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000;}
+.spinner{width:13px;height:13px;border:2px solid var(--surface3);border-top-color:var(--gold);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* group badge top-left */
+.card-group-badge{position:absolute;top:3px;left:3px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;border:1px solid rgba(0,0,0,0.3);line-height:1.4;background:rgba(0,0,0,0.5);}
+
+/* status dot top-right */
+.status-dot{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;border:1.5px solid rgba(0,0,0,0.5);}
+
+.card-footer{padding:3px 6px 4px;background:rgba(6,18,30,0.92);border-top:1px solid rgba(2,61,107,0.3);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.card-id{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-muted);}
+.card-pct{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;}
+.res-bar-wrap{position:absolute;bottom:0;left:0;right:0;}
+.res-bar-bg{height:2px;background:rgba(255,255,255,0.05);}
+.res-bar-fill{height:100%;}
+
+/* ── DETAIL PANEL ────────────────────────── */
+.detail-panel{width:240px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width 0.2s;min-height:0;}
+.detail-panel.collapsed{width:0;}
+.detail-header{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.detail-title{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;}
+.detail-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;overflow-x:hidden;}
+.detail-canvas-wrap{background:#000;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);width:100%;}
+#detailCanvas{display:block;image-rendering:pixelated;width:100%;height:100%;}
+.detail-row{display:flex;justify-content:space-between;align-items:center;}
+.detail-key{font-size:11px;color:var(--text-muted);}
+.detail-val{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);}
+.tag-row{display:flex;gap:4px;flex-wrap:wrap;}
+.tag{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 5px;border-radius:3px;border:1px solid;}
+.tag-good{border-color:rgba(219,157,71,0.4);color:var(--gold);background:rgba(219,157,71,0.08);}
+.tag-warn{border-color:rgba(200,100,0,0.4);color:#e08030;background:rgba(200,100,0,0.08);}
+.tag-bad{border-color:rgba(71,0,36,0.6);color:#e05585;background:rgba(71,0,36,0.15);}
+
+/* group assign buttons in detail panel */
+.detail-group-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;}
+.dgb{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:5px 0;border-radius:4px;border:1.5px solid;cursor:pointer;transition:all 0.12s;text-align:center;}
+.dgb:hover{filter:brightness(1.25);}
+.dgb.active-dgb{box-shadow:0 0 0 2px #fff3;}
+
+.detail-reject-btn{width:100%;padding:5px;border-radius:4px;border:1px solid var(--burgundy-light);background:transparent;color:#e05585;font-family:'Outfit',sans-serif;font-size:11px;cursor:pointer;transition:background 0.12s;}
+.detail-reject-btn:hover{background:rgba(71,0,36,0.25);}
+
+/* ── EXPORT MODAL ────────────────────────── */
+#exportModal{position:fixed;inset:0;z-index:800;background:rgba(2,10,22,0.85);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s;}
+#exportModal.open{opacity:1;pointer-events:all;}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:500px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;}
+.modal-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.1em;color:var(--gold);}
+.modal-body{padding:16px 18px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;}
+.modal-footer{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+.export-group-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);}
+.export-swatch{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
+.export-group-name{font-size:12px;color:var(--text);flex:1;}
+.export-group-count{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);}
+.export-check{width:16px;height:16px;accent-color:var(--gold);}
+.export-filename{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);width:100%;outline:none;}
+.export-filename:focus{border-color:var(--navy-light);}
+.modal-note{font-size:11px;color:var(--text-muted);line-height:1.6;}
+
+/* ── STATUSBAR ───────────────────────────── */
+.statusbar{height:24px;background:var(--navy-dark);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:16px;flex-shrink:0;}
+.status-item{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:4px;}
+.status-led{width:6px;height:6px;border-radius:50%;}
+
+@keyframes fadeIn{from{opacity:0;transform:scale(0.97);}to{opacity:1;transform:scale(1);}}
+.class-card{animation:fadeIn 0.16s ease both;}
+
+/* flash animation when group assigned */
+@keyframes flashAssign{0%{opacity:1}40%{opacity:0.5}100%{opacity:1}}
+.flash-assign{animation:flashAssign 0.25s ease;}
+
+/* ── SIMILARITY MATRIX ───────────────────────── */
+.sim-bar{display:flex;align-items:center;gap:6px;margin-top:4px;}
+.sim-bar-track{flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;}
+.sim-bar-fill{height:100%;border-radius:3px;transition:width 0.3s;}
+.sim-val{font-family:'JetBrains Mono',monospace;font-size:10px;min-width:36px;text-align:right;}
+.sim-thumb{width:28px;height:28px;border-radius:4px;overflow:hidden;border:1.5px solid;cursor:pointer;flex-shrink:0;transition:transform 0.1s,box-shadow 0.1s;}
+.sim-thumb:hover{transform:scale(1.15);box-shadow:0 2px 8px rgba(0,0,0,0.5);z-index:10;}
+.sim-row{display:flex;align-items:center;gap:6px;padding:3px 0;}
+.sim-class-id{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-muted);width:28px;text-align:right;flex-shrink:0;}
+.sim-section-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;margin:8px 0 4px;}
+
+/* similarity highlight overlay on grid cards */
+.class-card.sim-highlight-high .card-img::after{content:'';position:absolute;inset:0;border-radius:3px;box-shadow:inset 0 0 0 2px rgba(94,220,150,0.7);pointer-events:none;}
+.class-card.sim-highlight-med .card-img::after{content:'';position:absolute;inset:0;border-radius:3px;box-shadow:inset 0 0 0 2px rgba(219,157,71,0.6);pointer-events:none;}
+.sim-heatmap-dot{position:absolute;bottom:3px;right:3px;width:6px;height:6px;border-radius:50%;border:1px solid rgba(0,0,0,0.4);}
+
+/* matrix selector in sidebar */
+.matrix-selector-row{display:flex;align-items:center;gap:6px;margin-top:4px;}
+.matrix-dropdown{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;padding:5px 8px;border-radius:var(--radius);outline:none;cursor:pointer;}
+.matrix-dropdown:focus{border-color:var(--navy-light);}
+.matrix-dropdown:disabled{color:var(--text-muted);cursor:default;}
+.sim-none-msg{font-size:11px;color:var(--text-muted);font-style:italic;padding:4px 0;}
+
+/* similarity threshold slider */
+.sim-thresh-row{display:flex;align-items:center;gap:6px;margin-top:5px;}
+
+
+/* ── GLOBAL THEMED SCROLLBARS ─────────────────── */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-corner{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(2,61,107,0.55);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(10,90,156,0.8);}
+/* Firefox */
+*{scrollbar-width:thin;scrollbar-color:rgba(2,61,107,0.7) transparent;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════  WELCOME  ═══════════ -->
+<div id="welcomeScreen">
+  <div class="welcome-logo">CLASS·SELECT</div>
+  <div class="welcome-sub">RELION 2D Classification Browser</div>
+  <div class="load-grid">
+
+    <!-- Card 1: model.star (required) -->
+    <div class="load-card" id="modelStarDropCard">
+      <div class="load-card-icon">📊</div>
+      <div class="load-card-title">1 — Model STAR</div>
+      <div class="load-card-desc">
+        Drop <code>*_model.star</code> or Browse.<br>
+        Provides class distributions &amp; resolution estimates.
+      </div>
+      <div class="file-pill pill-empty" id="modelStarPill">no file selected</div>
+      <label class="btn btn-ghost" style="width:100%;text-align:center;cursor:pointer;margin-top:2px">
+        Browse _model.star
+        <input type="file" id="modelStarInput" accept=".star" style="display:none">
+      </label>
+    </div>
+
+    <!-- Card 2: data/particles.star (needed for export) -->
+    <div class="load-card card-optional" id="dataStarDropCard">
+      <div class="load-card-icon">📄</div>
+      <div class="load-card-title">2 — Particles STAR</div>
+      <div class="optional-badge">Needed for export</div>
+      <div class="load-card-desc">
+        Drop <code>run_it*_data.star</code> or Browse.<br>
+        Required to export a proper <code>particles.star</code> with the optics table &amp; all columns.
+      </div>
+      <div class="file-pill pill-empty" id="dataStarPill">no file selected</div>
+      <label class="btn btn-ghost" style="width:100%;text-align:center;cursor:pointer;margin-top:2px">
+        Browse _data.star
+        <input type="file" id="dataStarInput" accept=".star" style="display:none">
+      </label>
+    </div>
+
+    <!-- Card 3: mrcs (optional) -->
+    <div class="load-card card-optional" id="mrcsDropCard">
+      <div class="load-card-icon">&#x1F5C3;&#xFE0F;</div>
+      <div class="load-card-title">3 — MRC Stack</div>
+      <div class="optional-badge">For real images</div>
+      <div class="load-card-desc">
+        Drop <code>*_classes.mrcs</code> or Browse.<br>
+        Without this, synthetic placeholder images are shown.
+      </div>
+      <div class="file-pill pill-empty" id="mrcsPill">no file selected</div>
+      <label class="btn btn-ghost" style="width:100%;text-align:center;cursor:pointer;margin-top:2px">
+        Browse .mrcs
+        <input type="file" id="mrcsInput" accept=".mrcs,.mrc" style="display:none">
+      </label>
+    </div>
+
+    <!-- Card 4: similarity matrix CSV (optional) -->
+    <div class="load-card card-optional" id="simMatrixDropCard">
+      <div class="load-card-icon">🔢</div>
+      <div class="load-card-title">4 — Similarity Matrix</div>
+      <div class="optional-badge">For suggestions</div>
+      <div class="load-card-desc">
+        Drop a <code>.csv</code> file with class similarity scores.<br>
+        Enables "similar class" suggestions in the detail panel.<br>
+        <span style="color:var(--navy-light);cursor:pointer;text-decoration:underline" onclick="showFormatHelp()">What format?</span>
+      </div>
+      <div class="file-pill pill-empty" id="simMatrixPill">no file selected</div>
+      <label class="btn btn-ghost" style="width:100%;text-align:center;cursor:pointer;margin-top:2px">
+        Browse .csv
+        <input type="file" id="simMatrixInput" accept=".csv,.tsv,.txt" style="display:none">
+      </label>
+    </div>
+
+  </div>
+  <div style="width:1080px">
+    <div class="progress-wrap"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="log-box" style="width:1080px" id="logBox"><span class="log-info">Ready. Load a _model.star to begin. Add _data.star to enable full particles.star export.</span></div>
+  </div>
+  <div class="welcome-actions">
+    <button class="btn btn-navy" id="loadBtn" onclick="loadFiles()" disabled>Load →</button>
+    <button class="btn btn-ghost" onclick="loadDemo()">Load Demo</button>
+  </div>
+</div>
+
+<!-- ═══════════  TOPBAR  ═══════════ -->
+<div class="topbar">
+  <div class="logo"><span>CLASS</span><span class="logo-badge">RELION 2D</span></div>
+  <div class="topbar-sep"></div>
+  <div class="file-path" id="filePath">No file loaded</div>
+  <span class="mrc-badge mrc-warn" id="mrcBadge" style="display:none"></span>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost" onclick="showWelcome()">Open Files</button>
+    <button class="btn btn-ghost" onclick="loadDemo()">Demo</button>
+    <button class="btn btn-gold" onclick="openExportModal()">Export particles.star</button>
+  </div>
+</div>
+
+<!-- ═══════════  WORKSPACE  ═══════════ -->
+<div class="workspace">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- Stats -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Session Stats</div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-val dim" id="statTotal">—</div><div class="stat-key">Classes</div></div>
+        <div class="stat-card"><div class="stat-val gold" id="statAssigned">0</div><div class="stat-key">Assigned</div></div>
+        <div class="stat-card"><div class="stat-val burg" id="statRejected">0</div><div class="stat-key">Rejected</div></div>
+        <div class="stat-card"><div class="stat-val navy" id="statParticles">—</div><div class="stat-key">Ptcls kept</div></div>
+      </div>
+    </div>
+
+    <!-- Groups -->
+    <div class="sidebar-section" style="flex:1;overflow-y:auto;min-height:0">
+      <div class="sidebar-label" style="display:flex;align-items:center;justify-content:space-between">
+        Groups
+        <span style="font-size:9px;color:var(--text-muted);letter-spacing:0;text-transform:none">click to select active</span>
+      </div>
+      <div class="group-palette" id="groupPalette"></div>
+      <div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">
+        <div class="rejected-row">
+          <div class="rejected-swatch"></div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-muted);width:12px;text-align:center">9</span>
+          <span style="font-size:11px;color:var(--text-muted);flex:1">Rejected</span>
+          <span class="group-count" id="rejCount">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Similarity Matrix -->
+    <div class="sidebar-section" id="simSidebarSection">
+      <div class="sidebar-label" style="display:flex;align-items:center;justify-content:space-between">
+        Similarity Matrices
+        <label class="btn btn-ghost" style="font-size:9px;padding:2px 7px;cursor:pointer">
+          + Load CSV <input type="file" id="simMatrixInputSidebar" accept=".csv,.tsv,.txt" style="display:none">
+        </label>
+      </div>
+      <div class="matrix-selector-row">
+        <select class="matrix-dropdown" id="matrixSelector" onchange="onMatrixDropdownChange(this)">
+          <option value="-1" disabled selected>— no matrix loaded —</option>
+        </select>
+      </div>
+      <div id="simThreshWrap" style="display:none">
+        <div class="sim-thresh-row">
+          <span class="slider-label">Show above</span>
+          <span class="slider-val" id="simThreshVal">0.5</span>
+        </div>
+        <input type="range" id="simThreshSlider" min="0" max="1" step="0.05" value="0.5"
+          oninput="updateSimThresh(this.value)">
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);cursor:pointer;margin-top:5px">
+          <input type="checkbox" id="showSimOverlay" onchange="renderGrid()" checked> Highlight similar in grid
+        </label>
+      </div>
+    </div>
+
+    <!-- Display controls -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Display</div>
+      <div class="slider-row"><span class="slider-label">Contrast (σ)</span><span class="slider-val" id="contrastVal">3.0</span></div>
+      <input type="range" id="contrastSlider" min="1" max="10" step="0.5" value="3" oninput="updateContrast(this.value)">
+      <div class="slider-row" style="margin-top:7px">
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);cursor:pointer">
+          <input type="checkbox" id="invertLUT" onchange="rerenderAll()"> Invert LUT
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);cursor:pointer;margin-left:auto">
+          <input type="checkbox" id="showResBar" onchange="renderGrid()" checked> Res bar
+        </label>
+      </div>
+    </div>
+
+    <!-- Sort & filter -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Sort &amp; Filter</div>
+      <select class="select-ctrl" id="sortBy" onchange="renderGrid()">
+        <option value="index">Class index</option>
+        <option value="dist_desc">Distribution ↓</option>
+        <option value="dist_asc">Distribution ↑</option>
+        <option value="res_asc">Est. Res ↑ (best)</option>
+        <option value="res_desc">Est. Res ↓</option>
+      </select>
+      <select class="select-ctrl" id="filterBy" onchange="renderGrid()">
+        <option value="all">Show all</option>
+        <option value="unset">Unassigned only</option>
+        <option value="rejected">Rejected only</option>
+        <option value="g1">Group 1 only</option>
+        <option value="g2">Group 2 only</option>
+        <option value="g3">Group 3 only</option>
+        <option value="g4">Group 4 only</option>
+        <option value="g5">Group 5 only</option>
+        <option value="g6">Group 6 only</option>
+        <option value="g7">Group 7 only</option>
+        <option value="g8">Group 8 only</option>
+      </select>
+    </div>
+
+    <!-- Auto-select -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Auto-Assign to Active Group</div>
+      <div class="slider-row"><span class="slider-label">Dist &gt;</span><span class="slider-val" id="threshVal">2.0%</span></div>
+      <input type="range" min="0" max="20" step="0.5" value="2" oninput="updateThresh(this.value)">
+      <div class="slider-row"><span class="slider-label">Res &lt;</span><span class="slider-val" id="resThreshVal">15 Å</span></div>
+      <input type="range" min="5" max="40" step="1" value="15" oninput="updateResThresh(this.value)">
+      <button class="btn btn-ghost" style="width:100%;margin-top:7px;font-size:11px" onclick="autoAssign()">⚡ Auto-Assign</button>
+    </div>
+
+    <div class="sidebar-bottom">
+      <button class="btn btn-ghost" style="font-size:11px" onclick="clearAll()">Clear All Assignments</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="toolbar">
+      <div class="toolbar-group">
+        <button class="btn btn-ghost" onclick="zoom(-1)">−</button>
+        <span class="zoom-label" id="zoomLabel">6×</span>
+        <button class="btn btn-ghost" onclick="zoom(1)">+</button>
+      </div>
+      <div class="toolbar-sep"></div>
+      <div class="toolbar-group">
+        <button class="btn btn-ghost" style="font-size:11px" onclick="setView('all')">All</button>
+        <button class="btn btn-ghost" style="font-size:11px" onclick="setView('unset')">Unassigned</button>
+        <button class="btn btn-ghost" style="font-size:11px" onclick="setView('rejected')">Rejected</button>
+      </div>
+      <div class="search-box">
+        <span style="color:var(--text-muted)">🔍</span>
+        <input type="text" placeholder="Class #, dist…" id="searchBox" oninput="renderGrid()">
+      </div>
+    </div>
+
+    <!-- hotkey hint -->
+    <div class="hotkey-bar" id="hotkeyBar"></div>
+
+    <div class="grid-container">
+      <div class="class-grid" id="classGrid" style="--cols:6"></div>
+    </div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div class="detail-panel collapsed" id="detailPanel">
+    <div class="detail-header">
+      <span class="detail-title">Class Detail</span>
+      <button class="btn btn-ghost" style="padding:2px 7px;font-size:10px" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="detail-body" id="detailBody">
+      <p style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:40px">Click a class to inspect</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- STATUSBAR -->
+<div class="statusbar">
+  <div class="status-item"><div class="status-led" style="background:#2a8"></div><span id="statusMsg">Ready</span></div>
+  <div class="status-item" style="margin-left:auto"><span id="statusParticles">—</span></div>
+  <div class="status-item"><span id="statusIter">—</span></div>
+</div>
+
+<!-- ═══════════  EXPORT MODAL  ═══════════ -->
+<div id="exportModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">EXPORT PARTICLES.STAR</span>
+      <button class="btn btn-ghost" style="padding:2px 7px;font-size:10px" onclick="closeExportModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeExportModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="doExport()">Download Selected</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  SIMILARITY MATRIX STATE
+// ═══════════════════════════════════════════════
+let simMatrices     = [];   // [ { name, size, data: Float32Array(n×n), classes: int[] } ]
+let activeMatrixIdx = -1;   // index into simMatrices, -1 = none
+let simThreshold    = 0.5;
+let pendingSimFile  = null;
+
+function getActiveMatrix() {
+  return activeMatrixIdx >= 0 ? simMatrices[activeMatrixIdx] : null;
+}
+
+// Get sorted similar classes for a given class index (1-based RELION class number)
+// Returns [ { classIndex, score }, ... ] sorted desc, above threshold
+function getSimilarClasses(classIndex) {
+  const mat = getActiveMatrix();
+  if (!mat) return [];
+  // mat.classes[i] = RELION class number for row/col i
+  const row = mat.classes.indexOf(classIndex);
+  if (row < 0) return [];
+  const n = mat.classes.length;
+  const results = [];
+  for (let col = 0; col < n; col++) {
+    if (col === row) continue;
+    const score = mat.data[row * n + col];
+    if (score >= simThreshold) {
+      results.push({ classIndex: mat.classes[col], score });
+    }
+  }
+  results.sort((a,b) => b.score - a.score);
+  return results;
+}
+
+// Parse CSV / TSV similarity matrix file
+// Supports multiple matrices in one file separated by blank lines + optional header line
+function parseSimMatrixFile(text) {
+  const matrices = [];
+  // Split into blocks by double-blank-line or "# name" comment headers
+  const lines = text.split(/\r?\n/);
+  let currentBlock = [];
+  let currentName = null;
+
+  function commitBlock() {
+    if (!currentBlock.length) return;
+    // Filter out pure comment/blank lines
+    const dataLines = currentBlock.filter(l => l.trim() && !l.trim().startsWith('#'));
+    if (!dataLines.length) return;
+
+    // Detect if first row is a header (contains non-numeric values)
+    const firstCells = dataLines[0].split(/[,	;]/);
+    let hasHeader = false;
+    let classIndices = null;
+    if (firstCells.some(c => isNaN(parseFloat(c.trim())))) {
+      hasHeader = true;
+      // Extract class numbers from header (skip first cell if it is a row-label column)
+      classIndices = firstCells
+        .map(c => parseInt(c.trim().replace(/[^0-9]/g,'')))
+        .filter(v => !isNaN(v) && v > 0);
+    }
+
+    const rows = hasHeader ? dataLines.slice(1) : dataLines;
+    const parsed = rows.map(row => {
+      const cells = row.split(/[,	;]/);
+      // First cell might be a row-label (class number) — skip if non-numeric after stripping
+      const start = (!isNaN(parseFloat(cells[0].trim())) && cells.length > 1 &&
+                     !isNaN(parseFloat(cells[1].trim()))) ? 0 : 1;
+      return cells.slice(start).map(c => parseFloat(c.trim())).filter(v => !isNaN(v));
+    }).filter(r => r.length > 0);
+
+    if (!parsed.length) return;
+    const n = Math.min(...parsed.map(r => r.length), parsed.length);
+    if (n < 2) return;
+
+    // Build classIndices if not from header: assume 1..n or extract from row labels
+    if (!classIndices || classIndices.length !== n) {
+      // Try to read from first cell of each row
+      classIndices = rows.slice(0, n).map(row => {
+        const cells = row.split(/[,	;]/);
+        const v = parseInt(cells[0].trim().replace(/[^0-9]/g,''));
+        return isNaN(v) ? 0 : v;
+      });
+      if (classIndices.some(v => v <= 0)) {
+        classIndices = Array.from({length: n}, (_, i) => i + 1);
+      }
+    }
+
+    const data = new Float32Array(n * n);
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        data[r * n + c] = (parsed[r] && parsed[r][c] !== undefined) ? parsed[r][c] : 0;
+      }
+    }
+
+    // Normalise to [0,1] if values look like raw correlations outside that range
+    const maxVal = Math.max(...data);
+    const minVal = Math.min(...data);
+    if (maxVal > 1.01 || minVal < -0.01) {
+      const range = maxVal - minVal || 1;
+      for (let i = 0; i < data.length; i++) data[i] = (data[i] - minVal) / range;
+    }
+
+    matrices.push({
+      name: currentName || `Matrix ${matrices.length + 1}`,
+      size: n,
+      classes: classIndices.slice(0, n),
+      data
+    });
+    currentName = null;
+  }
+
+  for (const line of lines) {
+    const l = line.trim();
+    if (l.startsWith('# ') || l.startsWith('## ')) {
+      // Named section header
+      commitBlock();
+      currentBlock = [];
+      currentName = l.replace(/^#+\s*/, '').trim();
+    } else if (!l && currentBlock.length) {
+      // Blank line — might separate matrices
+      const hasData = currentBlock.some(bl => bl.trim() && !bl.trim().startsWith('#'));
+      if (hasData) { commitBlock(); currentBlock = []; }
+    } else {
+      currentBlock.push(line);
+    }
+  }
+  commitBlock();
+  return matrices;
+}
+
+function loadSimMatrixFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const mats = parseSimMatrixFile(e.target.result);
+    if (!mats.length) {
+      log('Could not parse any matrix from file — check format', 'err');
+      return;
+    }
+    simMatrices = mats;
+    activeMatrixIdx = 0;
+    log(`Similarity: loaded ${mats.length} matrix/matrices (${mats.map(m=>m.name+' '+m.size+'×'+m.size).join(', ')})`, 'ok');
+    renderMatrixSelector();
+    renderGrid();
+    if (focusIdx !== null) openDetail(focusIdx);
+  };
+  reader.readAsText(file);
+}
+
+function renderMatrixSelector() {
+  const sel = document.getElementById('matrixSelector');
+  if (!sel) return;
+  sel.innerHTML = '';
+  if (!simMatrices.length) {
+    const opt = document.createElement('option');
+    opt.value = '-1'; opt.disabled = true; opt.selected = true;
+    opt.textContent = '— no matrix loaded —';
+    sel.appendChild(opt);
+    sel.disabled = true;
+    document.getElementById('simThreshWrap').style.display = 'none';
+    return;
+  }
+  sel.disabled = false;
+  document.getElementById('simThreshWrap').style.display = '';
+  simMatrices.forEach((mat, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `${mat.name}  (${mat.size}×${mat.size})`;
+    opt.selected = (i === activeMatrixIdx);
+    sel.appendChild(opt);
+  });
+}
+
+function onMatrixDropdownChange(sel) {
+  activeMatrixIdx = parseInt(sel.value);
+  renderGrid();
+  if (focusIdx !== null) openDetail(focusIdx);
+}
+
+function updateSimThresh(v) {
+  simThreshold = parseFloat(v);
+  document.getElementById('simThreshVal').textContent = simThreshold.toFixed(2);
+  renderGrid();
+  if (focusIdx !== null) openDetail(focusIdx);
+}
+
+function showFormatHelp() {
+  document.getElementById('formatHelpModal').classList.add('open');
+}
+function closeFormatHelp() {
+  document.getElementById('formatHelpModal').classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════
+//  GROUP DEFINITIONS  (0=unset, 1-8=groups, 9=rejected)
+// ═══════════════════════════════════════════════
+const GROUP_COLORS = {
+  0:'#3d5a6e', 1:'#DB9D47', 2:'#5aabde', 3:'#7ecb8f',
+  4:'#c97fd4', 5:'#e07878', 6:'#78c4e0', 7:'#e0c178',
+  8:'#a0a0c8', 9:'#6b0035'
+};
+let groupNames = {
+  1:'Group 1', 2:'Group 2', 3:'Group 3', 4:'Group 4',
+  5:'Group 5', 6:'Group 6', 7:'Group 7', 8:'Group 8'
+};
+let activeGroup = 1;   // currently selected group to assign with hotkey / click
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let classes       = [];   // each class: { index, sliceIndex, group (0-9), dist, res, particles, ... }
+let mrcSlices     = {};
+let mrcBoxSize    = 0;
+let mrcLoaded     = false;
+let focusIdx      = null;
+let cols          = 6;
+let threshDist    = 2.0;
+let threshRes     = 15;
+let contrastSigma = 3.0;
+let pendingModelStarFile = null;
+let pendingDataStarFile  = null;
+let pendingMrcsFile      = null;
+let particlesStarText = '';  // raw particles.star if loaded
+
+// ═══════════════════════════════════════════════
+//  LOGGING
+// ═══════════════════════════════════════════════
+function log(msg, type='info') {
+  const box = document.getElementById('logBox');
+  const s = document.createElement('span');
+  s.className = `log-${type}`; s.textContent = msg;
+  box.appendChild(document.createElement('br'));
+  box.appendChild(s);
+  box.scrollTop = box.scrollHeight;
+}
+function setProgress(p) { document.getElementById('progressFill').style.width = p+'%'; }
+
+// ═══════════════════════════════════════════════
+//  WELCOME
+// ═══════════════════════════════════════════════
+function showWelcome() { document.getElementById('welcomeScreen').classList.remove('hidden'); }
+function hideWelcome() { document.getElementById('welcomeScreen').classList.add('hidden'); }
+
+// ── File input listeners ─────────────────────────────────────────────────
+document.getElementById('modelStarInput').addEventListener('change', function() {
+  const f = this.files[0]; if (!f) return;
+  pendingModelStarFile = f;
+  setPill('modelStarPill', f.name, 'ok');
+  log(`Model STAR: ${f.name} (${(f.size/1024).toFixed(0)} KB)`, 'ok');
+  checkReady();
+});
+document.getElementById('dataStarInput').addEventListener('change', function() {
+  const f = this.files[0]; if (!f) return;
+  pendingDataStarFile = f;
+  setPill('dataStarPill', f.name, 'ok');
+  log(`Data STAR: ${f.name} (${(f.size/1e6).toFixed(2)} MB)`, 'ok');
+  checkReady();
+});
+document.getElementById('mrcsInput').addEventListener('change', function() {
+  const f = this.files[0]; if (!f) return;
+  pendingMrcsFile = f;
+  setPill('mrcsPill', `${f.name} (${(f.size/1e6).toFixed(1)} MB)`, 'ok');
+  log(`MRC stack: ${f.name} (${(f.size/1e6).toFixed(1)} MB)`, 'ok');
+  checkReady();
+});
+
+// ── Drop zones ────────────────────────────────────────────────────────────
+setupFileDrop('modelStarDropCard', f => {
+  if (!f.name.endsWith('.star')) { log(`Expected .star, got: ${f.name}`, 'err'); return; }
+  pendingModelStarFile = f; setPill('modelStarPill', f.name, 'ok');
+  log(`Model STAR dropped: ${f.name}`, 'ok'); checkReady();
+});
+setupFileDrop('dataStarDropCard', f => {
+  if (!f.name.endsWith('.star')) { log(`Expected .star, got: ${f.name}`, 'err'); return; }
+  pendingDataStarFile = f; setPill('dataStarPill', f.name, 'ok');
+  log(`Data STAR dropped: ${f.name}`, 'ok'); checkReady();
+});
+setupFileDrop('mrcsDropCard', f => {
+  if (!f.name.endsWith('.mrcs') && !f.name.endsWith('.mrc')) { log(`Expected .mrcs, got: ${f.name}`, 'err'); return; }
+  pendingMrcsFile = f; setPill('mrcsPill', `${f.name} (${(f.size/1e6).toFixed(1)} MB)`, 'ok');
+  log(`MRC stack dropped: ${f.name}`, 'ok'); checkReady();
+});
+
+function setupFileDrop(id, cb) {
+  const el = document.getElementById(id);
+  el.addEventListener('dragover',  e => { e.preventDefault(); e.stopPropagation(); el.classList.add('drag-over'); });
+  el.addEventListener('dragleave', e => { e.stopPropagation(); el.classList.remove('drag-over'); });
+  el.addEventListener('drop', e => {
+    e.preventDefault(); e.stopPropagation(); el.classList.remove('drag-over');
+    const files = [...e.dataTransfer.files];
+    if (files.length) cb(files[0]);
+    else if (e.dataTransfer.items.length) { const f = e.dataTransfer.items[0].getAsFile(); if (f) cb(f); }
+  });
+}
+
+function setPill(id, txt, type) {
+  const p = document.getElementById(id);
+  p.textContent = txt;
+  p.className = `file-pill pill-${type}`;
+}
+
+function checkReady() {
+  // Load button enabled as soon as a model.star is present
+  document.getElementById('loadBtn').disabled = !pendingModelStarFile;
+}
+
+// Similarity matrix loaders
+document.getElementById('simMatrixInput').addEventListener('change', function() {
+  const f = this.files[0]; if (!f) return;
+  pendingSimFile = f;
+  setPill('simMatrixPill', f.name, 'ok');
+  log(`Similarity matrix: ${f.name}`, 'ok');
+});
+document.getElementById('simMatrixInputSidebar').addEventListener('change', function() {
+  const f = this.files[0]; if (!f) return;
+  loadSimMatrixFile(f);
+  setStatus(`Similarity matrix loaded: ${f.name}`);
+});
+setupFileDrop('simMatrixDropCard', f => {
+  pendingSimFile = f;
+  setPill('simMatrixPill', f.name, 'ok');
+  log(`Similarity matrix dropped: ${f.name}`, 'ok');
+});
+
+// ═══════════════════════════════════════════════
+//  LOAD FILES
+// ═══════════════════════════════════════════════
+async function loadFiles() {
+  if (!pendingModelStarFile) return;
+  document.getElementById('loadBtn').disabled = true;
+  setProgress(5);
+
+  // ── 1. Parse model.star ────────────────────────────────────────────────
+  log('Parsing model STAR…', 'info');
+  let modelTxt;
+  try { modelTxt = await pendingModelStarFile.text(); }
+  catch(e) { log(`Read error (model.star): ${e.message}`, 'err'); document.getElementById('loadBtn').disabled=false; return; }
+  setProgress(15);
+
+  const parsed = parseModelStar(modelTxt);
+  if (!parsed.length) {
+    log('Could not parse class data from model.star — is this really a *_model.star?', 'err');
+    document.getElementById('loadBtn').disabled = false;
+    return;
+  }
+  log(`Model STAR: ${parsed.length} classes parsed`, 'ok');
+  setProgress(30);
+
+  classes = parsed;
+  mrcLoaded = false; mrcSlices = {};
+  particlesStarText = '';
+  document.getElementById('filePath').textContent = pendingModelStarFile.name;
+
+  // ── 2. Parse data/particles.star (optional but strongly encouraged) ────
+  if (pendingDataStarFile) {
+    log(`Parsing data STAR: ${pendingDataStarFile.name}…`, 'info');
+    try {
+      const dataTxt = await pendingDataStarFile.text();
+      // Validate it has _rlnClassNumber
+      if (!dataTxt.includes('_rlnClassNumber')) {
+        log('Warning: _rlnClassNumber not found in data STAR — export may fail', 'err');
+      } else {
+        particlesStarText = dataTxt;
+        // Count particles per class to update particle counts on class objects
+        const classCounts = countParticlesPerClass(dataTxt);
+        parsed.forEach(cls => {
+          const realCount = classCounts[cls.sliceIndex];
+          if (realCount !== undefined) cls.particles = realCount;
+        });
+        const totalPtcl = Object.values(classCounts).reduce((s,v)=>s+v,0);
+        log(`Data STAR: ${totalPtcl.toLocaleString()} particles across ${Object.keys(classCounts).length} classes`, 'ok');
+      }
+    } catch(e) { log(`Read error (data.star): ${e.message}`, 'err'); }
+  } else {
+    log('No data STAR loaded — particle counts are estimates only. Export will produce a stub file.', 'info');
+  }
+  setProgress(50);
+
+  // ── 3. Load MRC stack ─────────────────────────────────────────────────
+  if (pendingMrcsFile) {
+    log(`Reading MRC stack (${(pendingMrcsFile.size/1e6).toFixed(1)} MB)…`, 'info');
+    try {
+      await loadMrc(pendingMrcsFile);
+      setBadge(true, pendingMrcsFile.name);
+      log(`MRC: ${Object.keys(mrcSlices).length} slices, box ${mrcBoxSize}px`, 'ok');
+    } catch(e) {
+      setBadge(false, 'MRC error');
+      log(`MRC error: ${e.message}`, 'err');
+    }
+  } else {
+    setBadge(false, 'No .mrcs — synthetic images');
+    log('No MRC stack — showing synthetic images', 'info');
+  }
+  setProgress(100);
+
+  // ── 4. Load similarity matrix if provided ──────────────────────────────
+  if (pendingSimFile) {
+    log(`Parsing similarity matrix: ${pendingSimFile.name}…`, 'info');
+    try {
+      const simTxt = await pendingSimFile.text();
+      const mats = parseSimMatrixFile(simTxt);
+      if (mats.length) {
+        simMatrices = mats;
+        activeMatrixIdx = 0;
+        log(`Similarity: ${mats.length} matrix/matrices loaded`, 'ok');
+      } else {
+        log('Could not parse matrix file — check format', 'err');
+      }
+    } catch(e) { log(`Similarity matrix error: ${e.message}`, 'err'); }
+  }
+
+  hideWelcome();
+  renderGroupPalette();
+  renderMatrixSelector();
+  renderHotkeyBar();
+  renderGrid();
+
+  const exportState = particlesStarText ? '✓ particles.star ready for export' : '⚠ add data.star for proper export';
+  setStatus(`${parsed.length} classes loaded${mrcLoaded ? ' · real MRC images' : ' · synthetic images'} · ${exportState}`);
+}
+
+// Count _rlnClassNumber occurrences in a particles.star for accurate particle counts
+function countParticlesPerClass(text) {
+  const lines = text.split('\n');
+  let colMap = {}, inLoop = false, colIdx = 0;
+  const counts = {};
+  for (const raw of lines) {
+    const l = raw.trim();
+    if (l.startsWith('data_')) { inLoop=false; colMap={}; colIdx=0; continue; }
+    if (l === 'loop_')         { inLoop=true;  colIdx=0;  colMap={}; continue; }
+    if (inLoop && l.startsWith('_rln')) { colMap[l.split(/\s+/)[0]] = colIdx++; continue; }
+    if (inLoop && l && !l.startsWith('#')) {
+      const p = l.split(/\s+/);
+      const ci = colMap['_rlnClassNumber'];
+      if (ci === undefined) continue;
+      const cls = parseInt(p[ci] || '0');
+      if (cls > 0) counts[cls] = (counts[cls] || 0) + 1;
+    }
+  }
+  return counts;
+}
+
+// ═══════════════════════════════════════════════
+//  MRC LOADER
+// ═══════════════════════════════════════════════
+async function loadMrc(file) {
+  const buf = await file.arrayBuffer();
+  if (buf.byteLength < 1024) throw new Error('File too small');
+  const dv = new DataView(buf);
+  const nx=dv.getInt32(0,true), ny=dv.getInt32(4,true), nz=dv.getInt32(8,true);
+  const mode=dv.getInt32(12,true), nsymbt=dv.getInt32(92,true), offset=1024+nsymbt;
+  if (nx<=0||ny<=0||nz<=0||nx>4096||ny>4096) throw new Error(`Bad dims ${nx}×${ny}×${nz}`);
+  mrcBoxSize=nx; mrcSlices={};
+  const pc=nx*ny, bpp=mode===2?4:mode===1?2:1;
+  for (let iz=0;iz<nz;iz++) {
+    const px=new Float32Array(pc), s=offset+iz*pc*bpp;
+    if (mode===2) px.set(new Float32Array(buf,s,pc));
+    else if (mode===1){const v=new Int16Array(buf,s,pc);for(let i=0;i<pc;i++)px[i]=v[i];}
+    else {const v=new Uint8Array(buf,s,pc);for(let i=0;i<pc;i++)px[i]=v[i];}
+    mrcSlices[iz+1]=px;
+    if (iz%10===0) setProgress(50+Math.round(iz/nz*45));
+  }
+  mrcLoaded=true;
+}
+
+// ═══════════════════════════════════════════════
+//  MRC RENDER
+// ═══════════════════════════════════════════════
+function renderMrcSlice(canvas, sliceIndex) {
+  const raw=mrcSlices[sliceIndex]; if(!raw){renderSynthetic(canvas,sliceIndex);return;}
+  const n=raw.length, box=mrcBoxSize;
+  const invert=document.getElementById('invertLUT').checked;
+  let mean=0; for(let i=0;i<n;i++) mean+=raw[i]; mean/=n;
+  let v2=0; for(let i=0;i<n;i++){const d=raw[i]-mean;v2+=d*d;}
+  const std=Math.sqrt(v2/n)||1, lo=mean-contrastSigma*std, range=2*contrastSigma*std;
+  canvas.width=box; canvas.height=box;
+  const ctx=canvas.getContext('2d'), img=ctx.createImageData(box,box), d=img.data;
+  for(let i=0;i<n;i++){
+    let v=Math.round(Math.max(0,Math.min(255,((raw[i]-lo)/range)*255)));
+    if(invert) v=255-v; const p=i<<2; d[p]=d[p+1]=d[p+2]=v; d[p+3]=255;
+  }
+  ctx.putImageData(img,0,0);
+}
+
+function seededRand(seed){let s=(seed*1664525+1013904223)>>>0;return()=>{s=(s*1664525+1013904223)>>>0;return s/0xffffffff;};}
+function renderSynthetic(canvas, seed) {
+  const r=seededRand(seed*7919), cls=classes.find(c=>c.index===seed)||{};
+  const snr=cls.snr||0.3,ecc=cls.ecc||0.7,rot=cls.rot||seed;
+  const sz=128,cx=64,cy=64,rd=46;
+  canvas.width=canvas.height=sz;
+  const ctx=canvas.getContext('2d');
+  const imgd=ctx.createImageData(sz,sz);
+  for(let i=0;i<imgd.data.length;i+=4){const v=16+r()*20;imgd.data[i]=imgd.data[i+1]=imgd.data[i+2]=v;imgd.data[i+3]=255;}
+  ctx.putImageData(imgd,0,0);
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rd);
+  g.addColorStop(0,`rgba(200,200,200,${0.3+snr*0.5})`);g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,sz,sz);
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(rot);
+  const pg=ctx.createRadialGradient(0,0,0,0,0,rd);
+  pg.addColorStop(0,`rgba(215,215,215,${0.5+snr*0.4})`);pg.addColorStop(0.6,'rgba(120,120,120,0.2)');pg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=pg;ctx.beginPath();ctx.ellipse(0,0,rd*ecc,rd*(1.7-ecc)*0.55,0,0,Math.PI*2);ctx.fill();ctx.restore();
+  const vig=ctx.createRadialGradient(cx,cy,38,cx,cy,72);
+  vig.addColorStop(0,'rgba(0,0,0,0)');vig.addColorStop(1,'rgba(0,0,0,0.65)');
+  ctx.fillStyle=vig;ctx.fillRect(0,0,sz,sz);
+}
+function rerenderAll() {
+  document.querySelectorAll('canvas.class-canvas[data-slice]').forEach(cv=>{
+    const s=parseInt(cv.dataset.slice),idx=parseInt(cv.dataset.classidx||s);
+    if(mrcLoaded&&mrcSlices[s]) renderMrcSlice(cv,s); else renderSynthetic(cv,idx);
+  });
+  if(focusIdx!==null) openDetail(focusIdx);
+}
+
+// ═══════════════════════════════════════════════
+//  STAR PARSERS
+// ═══════════════════════════════════════════════
+function parseModelStar(text) {
+  const lines=text.split('\n'), result=[];
+  let colMap={},inLoop=false,colIdx=0;
+  for(let raw of lines){
+    const l=raw.trim();
+    if(l.startsWith('data_')){inLoop=false;colMap={};colIdx=0;continue;}
+    if(l==='loop_'){inLoop=true;colIdx=0;colMap={};continue;}
+    if(inLoop&&l.startsWith('_rln')){colMap[l.split(/\s+/)[0]]=colIdx++;continue;}
+    if(inLoop&&l&&!l.startsWith('_')&&!l.startsWith('#')){
+      const p=l.split(/\s+/); if(p.length<2) continue;
+      const get=k=>colMap[k]!==undefined?p[colMap[k]]:undefined;
+      const distRaw=get('_rlnClassDistribution'); if(distRaw===undefined) continue;
+      const dist=parseFloat(distRaw); if(isNaN(dist)) continue;
+      const res=parseFloat(get('_rlnEstimatedResolution')||'999');
+      const ptcl=parseInt(get('_rlnNrOfSignificantSamples')||get('_rlnGroupNrParticles')||'0');
+      const refImg=get('_rlnReferenceImage')||'';
+      const sm=refImg.match(/^(\d+)@/);
+      const sliceIndex=sm?parseInt(sm[1]):result.length+1;
+      result.push({index:result.length+1,sliceIndex,group:0,
+        dist:parseFloat((dist*100).toFixed(3)),res:isNaN(res)?999:res,
+        particles:ptcl||Math.round(dist*100*800),
+        snr:Math.max(0,Math.min(1,dist*5)),rot:sliceIndex*1.618,ecc:0.45+(sliceIndex%7)*0.07});
+    }
+  }
+  return result;
+}
+
+function parseParticlesStar(text) {
+  // Summarise a particles.star into per-class entries for the grid.
+  // The class index shown in the grid = the _rlnClassNumber value from the file.
+  const lines = text.split('\n');
+  let colMap = {}, inLoop = false, colIdx = 0;
+  const classMap = {}; // rlnClassNumber -> { count, rlnClassNumber }
+
+  for (const raw of lines) {
+    const l = raw.trim();
+    if (l.startsWith('data_')) { inLoop=false; colMap={}; colIdx=0; continue; }
+    if (l === 'loop_')         { inLoop=true;  colIdx=0;  colMap={}; continue; }
+    if (inLoop && l.startsWith('_rln')) { colMap[l.split(/\s+/)[0]] = colIdx++; continue; }
+    if (inLoop && l && !l.startsWith('#')) {
+      const p = l.split(/\s+/);
+      if (p.length < 2) continue;
+      const get = k => colMap[k] !== undefined ? p[colMap[k]] : undefined;
+      const clsRaw = get('_rlnClassNumber');
+      if (clsRaw === undefined) continue;
+      const cls = parseInt(clsRaw);
+      if (isNaN(cls) || cls <= 0) continue;
+      if (!classMap[cls]) classMap[cls] = { count: 0, rlnClassNumber: cls };
+      classMap[cls].count++;
+    }
+  }
+
+  const total = Object.values(classMap).reduce((s, v) => s + v.count, 0) || 1;
+  // Sort by class number; use the actual _rlnClassNumber as both index and sliceIndex
+  return Object.values(classMap)
+    .sort((a, b) => a.rlnClassNumber - b.rlnClassNumber)
+    .map((v, i) => ({
+      index:      i + 1,           // display index (1-based sequential)
+      sliceIndex: v.rlnClassNumber, // MRC slice = actual class number
+      rlnClassNumber: v.rlnClassNumber, // stored for export filtering
+      group:      0,
+      dist:       parseFloat((v.count / total * 100).toFixed(3)),
+      res:        999,
+      particles:  v.count,
+      snr:        0.2,
+      rot:        v.rlnClassNumber * 1.618,
+      ecc:        0.6
+    }));
+}
+
+// ═══════════════════════════════════════════════
+//  GROUP PALETTE UI
+// ═══════════════════════════════════════════════
+function renderGroupPalette() {
+  const pal = document.getElementById('groupPalette');
+  pal.innerHTML = '';
+  for (let g=1; g<=8; g++) {
+    const count = classes.filter(c=>c.group===g).length;
+    const ptcls = classes.filter(c=>c.group===g).reduce((s,c)=>s+c.particles,0);
+    const row = document.createElement('div');
+    row.className = 'group-row' + (g===activeGroup?' active-group':'');
+    row.dataset.group = g;
+    row.onclick = () => setActiveGroup(g);
+    row.innerHTML = `
+      <div class="group-swatch" style="background:${GROUP_COLORS[g]}"></div>
+      <span class="group-key">${g}</span>
+      <input class="group-name-input" value="${groupNames[g]}" data-g="${g}"
+        onclick="event.stopPropagation()"
+        onchange="groupNames[this.dataset.g]=this.value;renderGroupPalette();renderGrid();">
+      <span class="group-count">${count}</span>
+      <span class="group-ptcl">${ptcls>999?(ptcls/1000).toFixed(0)+'k':ptcls}</span>
+    `;
+    pal.appendChild(row);
+  }
+  document.getElementById('rejCount').textContent = classes.filter(c=>c.group===9).length;
+}
+
+function setActiveGroup(g) {
+  activeGroup = g;
+  renderGroupPalette();
+  renderHotkeyBar();
+  setStatus(`Active group: ${g} — ${groupNames[g]}`);
+}
+
+// ═══════════════════════════════════════════════
+//  HOTKEY BAR
+// ═══════════════════════════════════════════════
+function renderHotkeyBar() {
+  const bar = document.getElementById('hotkeyBar');
+  bar.innerHTML = '';
+  const hints = [
+    {key:'1–8', label:'Assign group'},
+    {key:'9', label:'Reject'},
+    {key:'0', label:'Clear'},
+    {key:'←→', label:'Prev/Next'},
+    {key:'Esc', label:'Close detail'},
+    {key:'+/−', label:'Zoom'},
+  ];
+  hints.forEach(h=>{
+    const chip=document.createElement('div'); chip.className='hk-chip';
+    chip.innerHTML=`<span class="hk-key">${h.key}</span><span class="hk-label">${h.label}</span>`;
+    bar.appendChild(chip);
+  });
+  // active group indicator
+  const ag=document.createElement('div'); ag.className='hk-chip';
+  ag.style.marginLeft='auto';
+  ag.innerHTML=`<div style="width:8px;height:8px;border-radius:2px;background:${GROUP_COLORS[activeGroup]};border:1px solid rgba(255,255,255,0.2)"></div><span class="hk-label" style="color:var(--text-dim)">&nbsp;Active: <b style="color:var(--text)">${activeGroup} ${groupNames[activeGroup]}</b></span>`;
+  bar.appendChild(ag);
+}
+
+// ═══════════════════════════════════════════════
+//  GRID
+// ═══════════════════════════════════════════════
+function getFiltered() {
+  const sort=document.getElementById('sortBy').value;
+  const filt=document.getElementById('filterBy').value;
+  const srch=document.getElementById('searchBox').value.toLowerCase();
+  let arr=[...classes];
+  if(filt==='unset') arr=arr.filter(c=>c.group===0);
+  else if(filt==='rejected') arr=arr.filter(c=>c.group===9);
+  else if(filt.startsWith('g')) arr=arr.filter(c=>c.group===parseInt(filt[1]));
+  if(srch) arr=arr.filter(c=>String(c.index).includes(srch)||String(c.dist).includes(srch));
+  if(sort==='dist_desc') arr.sort((a,b)=>b.dist-a.dist);
+  else if(sort==='dist_asc') arr.sort((a,b)=>a.dist-b.dist);
+  else if(sort==='res_asc') arr.sort((a,b)=>a.res-b.res);
+  else if(sort==='res_desc') arr.sort((a,b)=>b.res-a.res);
+  else arr.sort((a,b)=>a.index-b.index);
+  return arr;
+}
+
+function renderGrid() {
+  const grid=document.getElementById('classGrid');
+  grid.style.setProperty('--cols',cols);
+  const filtered=getFiltered(), showRes=document.getElementById('showResBar').checked;
+  grid.innerHTML='';
+  filtered.forEach((cls,i)=>{
+    const card=document.createElement('div');
+    const gc=GROUP_COLORS[cls.group];
+    card.className='class-card'+(cls.group===9?' rejected-card':'');
+    card.style.borderColor = cls.group>0 ? gc : 'var(--border)';
+    if(cls.group>0&&cls.group<9) card.style.boxShadow=`0 0 0 0px ${gc}44`;
+    card.style.animationDelay=`${Math.min(i*0.008,0.3)}s`;
+    card.dataset.classindex=cls.index;
+
+    // group badge
+    if(cls.group>0){
+      const badge=document.createElement('div'); badge.className='card-group-badge';
+      badge.style.color=gc; badge.style.borderColor=gc+'88';
+      badge.textContent=cls.group===9?'✕':`G${cls.group}`;
+      card.appendChild(badge);
+    }
+    // status dot
+    const dot=document.createElement('div'); dot.className='status-dot';
+    dot.style.background=gc; card.appendChild(dot);
+
+    // image
+    const imgWrap=document.createElement('div'); imgWrap.className='card-img';
+    const spin=document.createElement('div'); spin.className='card-spinner'; spin.innerHTML='<div class="spinner"></div>';
+    imgWrap.appendChild(spin);
+    const cv=document.createElement('canvas'); cv.className='class-canvas';
+    cv.dataset.slice=cls.sliceIndex; cv.dataset.classidx=cls.index;
+    imgWrap.appendChild(cv);
+    if(showRes){
+      const rb=document.createElement('div');rb.className='res-bar-wrap';
+      const bg=document.createElement('div');bg.className='res-bar-bg';
+      const fill=document.createElement('div');fill.className='res-bar-fill';
+      const pct=Math.max(0,Math.min(100,(40-cls.res)/34*100));
+      fill.style.cssText=`width:${pct}%;height:100%;background:linear-gradient(90deg,#023D6B,${pct>60?'#DB9D47':'#0a5a9c'})`;
+      bg.appendChild(fill);rb.appendChild(bg);imgWrap.appendChild(rb);
+    }
+    card.appendChild(imgWrap);
+
+    const foot=document.createElement('div');foot.className='card-footer';
+    const idEl=document.createElement('span');idEl.className='card-id';idEl.textContent=`#${String(cls.index).padStart(3,'0')}`;
+    const pctEl=document.createElement('span');pctEl.className='card-pct';
+    pctEl.style.color=cls.group>0?gc:'var(--text-dim)';
+    pctEl.textContent=cls.dist.toFixed(1)+'%';
+    foot.appendChild(idEl);foot.appendChild(pctEl);card.appendChild(foot);
+
+    // Similarity overlay dot
+    const showSimOv = document.getElementById('showSimOverlay');
+    if (showSimOv && showSimOv.checked && getActiveMatrix()) {
+      const simResults = getSimilarClasses(cls.sliceIndex);
+      if (simResults.length) {
+        const topScore = simResults[0].score;
+        const dot = document.createElement('div');
+        dot.className = 'sim-heatmap-dot';
+        const hue = Math.round(topScore * 120); // red=0 → green=120
+        dot.style.background = `hsl(${hue},80%,55%)`;
+        dot.title = `Top similarity: ${(topScore*100).toFixed(0)}%`;
+        imgWrap.appendChild(dot);
+        if (topScore >= 0.75) card.classList.add('sim-highlight-high');
+        else if (topScore >= simThreshold) card.classList.add('sim-highlight-med');
+      }
+    }
+
+    card.addEventListener('click', e=>{
+      if(e.shiftKey||e.ctrlKey||e.metaKey) assignGroup(cls.index, activeGroup);
+      else openDetail(cls.index);
+    });
+    card.addEventListener('dblclick', ()=>assignGroup(cls.index, activeGroup));
+    grid.appendChild(card);
+    requestAnimationFrame(()=>{
+      if(mrcLoaded&&mrcSlices[cls.sliceIndex]) renderMrcSlice(cv,cls.sliceIndex);
+      else renderSynthetic(cv,cls.index);
+      spin.remove();
+    });
+  });
+  updateStats();
+}
+
+// ═══════════════════════════════════════════════
+//  ASSIGN GROUP
+// ═══════════════════════════════════════════════
+function assignGroup(classIndex, group) {
+  const cls=classes.find(c=>c.index===classIndex); if(!cls) return;
+  cls.group = (cls.group===group) ? 0 : group;   // toggle off if same group
+  // flash the card
+  const card=document.querySelector(`.class-card[data-classindex="${classIndex}"]`);
+  if(card){card.classList.remove('flash-assign');void card.offsetWidth;card.classList.add('flash-assign');}
+  // re-style without full grid re-render for speed
+  if(card){
+    const gc=GROUP_COLORS[cls.group];
+    card.style.borderColor=cls.group>0?gc:'var(--border)';
+    card.className='class-card'+(cls.group===9?' rejected-card':'');
+    card.style.animationDelay='0s';
+    // update badge
+    let badge=card.querySelector('.card-group-badge');
+    if(cls.group>0){
+      if(!badge){badge=document.createElement('div');badge.className='card-group-badge';card.insertBefore(badge,card.firstChild);}
+      badge.style.color=gc;badge.style.borderColor=gc+'88';badge.textContent=cls.group===9?'✕':`G${cls.group}`;
+    } else { if(badge) badge.remove(); }
+    // dot
+    const dot=card.querySelector('.status-dot'); if(dot) dot.style.background=gc;
+    // pct color
+    const pctEl=card.querySelector('.card-pct'); if(pctEl) pctEl.style.color=cls.group>0?gc:'var(--text-dim)';
+  }
+  renderGroupPalette();
+  updateStats();
+  if(focusIdx===classIndex) openDetail(classIndex);
+}
+
+// ═══════════════════════════════════════════════
+//  DETAIL PANEL
+// ═══════════════════════════════════════════════
+function openDetail(index) {
+  focusIdx=index;
+  const cls=classes.find(c=>c.index===index); if(!cls) return;
+  document.getElementById('detailPanel').classList.remove('collapsed');
+  const resColor=cls.res<10?'var(--gold)':cls.res<20?'var(--text)':'var(--text-dim)';
+  let tags='';
+  if(cls.dist>5&&cls.res<15) tags+=`<span class="tag tag-good">HIGH QUAL</span>`;
+  if(cls.dist<1) tags+=`<span class="tag tag-warn">LOW PTCL</span>`;
+  if(cls.res>25) tags+=`<span class="tag tag-bad">POOR RES</span>`;
+  if(cls.snr>0.4) tags+=`<span class="tag tag-good">HIGH SNR</span>`;
+
+  // Build group assign buttons
+  let gbHtml='<div class="detail-group-grid">';
+  for(let g=1;g<=8;g++){
+    const col=GROUP_COLORS[g];
+    const active=cls.group===g;
+    gbHtml+=`<div class="dgb ${active?'active-dgb':''}" 
+      style="color:${col};border-color:${col}88;background:${active?col+'22':'transparent'}"
+      onclick="assignGroup(${index},${g})" title="${groupNames[g]} (key ${g})">${g}</div>`;
+  }
+  gbHtml+='</div>';
+
+  const stateColor = cls.group===0?'var(--text-muted)':cls.group===9?'#e05585':GROUP_COLORS[cls.group];
+  const stateLabel = cls.group===0?'UNASSIGNED':cls.group===9?'REJECTED':`GROUP ${cls.group}: ${groupNames[cls.group]}`;
+
+  document.getElementById('detailBody').innerHTML=`
+    <div class="detail-canvas-wrap"><canvas id="detailCanvas"></canvas></div>
+    <div class="tag-row">${tags||'<span class="tag tag-warn">UNCLASSIFIED</span>'}</div>
+    <div class="detail-row"><span class="detail-key">Class #</span><span class="detail-val">${cls.index}</span></div>
+    <div class="detail-row"><span class="detail-key">MRC slice</span><span class="detail-val">${cls.sliceIndex}</span></div>
+    <div class="detail-row"><span class="detail-key">Distribution</span><span class="detail-val">${cls.dist.toFixed(3)}%</span></div>
+    <div class="detail-row"><span class="detail-key">Particles</span><span class="detail-val">${cls.particles.toLocaleString()}</span></div>
+    <div class="detail-row"><span class="detail-key">Est. Res.</span><span class="detail-val" style="color:${resColor}">${cls.res<900?cls.res.toFixed(1)+' Å':'N/A'}</span></div>
+    <div class="detail-row"><span class="detail-key">Group</span><span class="detail-val" style="color:${stateColor}">${stateLabel}</span></div>
+    <div class="sidebar-label" style="margin-top:4px">Assign Group</div>
+    ${gbHtml}
+    <button class="detail-reject-btn" onclick="assignGroup(${index},9)">
+      ${cls.group===9?'✕ Clear rejection':'✕ Reject this class'}
+    </button>
+    <button class="detail-reject-btn" style="border-color:var(--border);color:var(--text-muted)" onclick="assignGroup(${index},0)">
+      ○ Clear assignment
+    </button>
+    <div id="detailSimPanel" style="margin-top:4px"></div>
+  `;
+  const dc=document.getElementById('detailCanvas');
+  if(mrcLoaded&&mrcSlices[cls.sliceIndex]) renderMrcSlice(dc,cls.sliceIndex);
+  else renderSynthetic(dc,cls.index);
+  // Use padding-bottom aspect-ratio box so canvas fills width at correct height
+  // regardless of layout timing. Canvas is positioned absolute inside the wrap.
+  const pxW = dc.width  || 128;
+  const pxH = dc.height || 128;
+  const wrap = dc.parentElement;
+  if (wrap) {
+    wrap.style.position     = 'relative';
+    wrap.style.paddingBottom = ((pxH / pxW) * 100).toFixed(4) + '%';
+    wrap.style.height       = '0';
+    dc.style.position = 'absolute';
+    dc.style.top      = '0';
+    dc.style.left     = '0';
+    dc.style.width    = '100%';
+    dc.style.height   = '100%';
+  }
+
+  // Render similarity suggestions
+  const simPanel = document.getElementById('detailSimPanel');
+  if (!simPanel) return;
+  const mat = getActiveMatrix();
+  if (!mat) {
+    simPanel.innerHTML = '<div class="sim-none-msg">No similarity matrix loaded</div>';
+    return;
+  }
+  const similar = getSimilarClasses(cls.sliceIndex);
+  if (!similar.length) {
+    simPanel.innerHTML = `<div class="sim-none-msg">No classes above threshold (${simThreshold.toFixed(2)})</div>`;
+    return;
+  }
+  let simHtml = '<div class="sim-section-label">Similar Classes</div>';
+  similar.slice(0, 10).forEach(({classIndex, score}) => {
+    const simCls = classes.find(c => c.sliceIndex === classIndex || c.index === classIndex);
+    const pct = Math.round(score * 100);
+    const hue = Math.round(score * 120);
+    const col = `hsl(${hue},70%,55%)`;
+    const grpLabel = simCls && simCls.group > 0 && simCls.group < 9
+      ? `<span style="color:${GROUP_COLORS[simCls.group]};font-size:9px">G${simCls.group}</span>` : '';
+    simHtml += `
+      <div class="sim-row">
+        <span class="sim-class-id">#${String(classIndex).padStart(3,'0')}</span>
+        <canvas class="sim-thumb" width="64" height="64" data-simslice="${classIndex}"
+          style="border-color:${col}88"
+          onclick="openDetail(${simCls ? simCls.index : classIndex})"
+          title="Class ${classIndex} — similarity ${pct}%"></canvas>
+        <div style="flex:1;min-width:0">
+          <div class="sim-bar">
+            <div class="sim-bar-track">
+              <div class="sim-bar-fill" style="width:${pct}%;background:${col}"></div>
+            </div>
+            <span class="sim-val" style="color:${col}">${pct}%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+            ${grpLabel}
+            <span style="font-size:9px;color:var(--text-muted)">${simCls ? simCls.dist.toFixed(1)+'%' : ''}</span>
+          </div>
+        </div>
+      </div>`;
+  });
+  simPanel.innerHTML = simHtml;
+  // Render thumbnails for similar classes
+  simPanel.querySelectorAll('canvas[data-simslice]').forEach(cv => {
+    const si = parseInt(cv.dataset.simslice);
+    requestAnimationFrame(() => {
+      if (mrcLoaded && mrcSlices[si]) renderMrcSlice(cv, si);
+      else {
+        const sc = classes.find(c => c.sliceIndex === si);
+        renderSynthetic(cv, sc ? sc.index : si);
+      }
+    });
+  });
+}
+function closeDetail(){focusIdx=null;document.getElementById('detailPanel').classList.add('collapsed');}
+
+// ═══════════════════════════════════════════════
+//  KEYBOARD
+// ═══════════════════════════════════════════════
+document.addEventListener('keydown', e=>{
+  // ignore when typing in inputs
+  if (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+
+  // 1-8: assign to group
+  if (e.key>='1'&&e.key<='8') {
+    const g=parseInt(e.key);
+    if (focusIdx!==null) { assignGroup(focusIdx, g); navigateDetail(1); }
+    else setActiveGroup(g);
+    return;
+  }
+  // 9: reject
+  if (e.key==='9') {
+    if (focusIdx!==null) { assignGroup(focusIdx, 9); navigateDetail(1); }
+    return;
+  }
+  // 0: clear
+  if (e.key==='0') {
+    if (focusIdx!==null) { assignGroup(focusIdx, 0); navigateDetail(1); }
+    return;
+  }
+  // arrow keys: navigate
+  if (e.key==='ArrowRight'||e.key==='ArrowDown') { e.preventDefault(); navigateDetail(1); return; }
+  if (e.key==='ArrowLeft'||e.key==='ArrowUp')    { e.preventDefault(); navigateDetail(-1); return; }
+
+  if (e.key==='Escape') closeDetail();
+  if ((e.key==='+'||e.key==='=')&&!e.ctrlKey) zoom(1);
+  if (e.key==='-'&&!e.ctrlKey) zoom(-1);
+});
+
+function navigateDetail(dir) {
+  const filtered=getFiltered();
+  if (!filtered.length) return;
+  if (focusIdx===null) { openDetail(filtered[0].index); return; }
+  const cur=filtered.findIndex(c=>c.index===focusIdx);
+  const next=filtered[(cur+dir+filtered.length)%filtered.length];
+  openDetail(next.index);
+}
+
+// ═══════════════════════════════════════════════
+//  BULK OPS
+// ═══════════════════════════════════════════════
+function clearAll(){classes.forEach(c=>c.group=0);renderGroupPalette();renderGrid();}
+function autoAssign(){
+  classes.forEach(c=>{if(c.group===0&&c.dist>=threshDist&&c.res<=threshRes) c.group=activeGroup;});
+  renderGroupPalette();renderGrid();
+  setStatus(`Auto-assigned ${classes.filter(c=>c.group===activeGroup).length} classes to ${groupNames[activeGroup]}`);
+}
+
+// ═══════════════════════════════════════════════
+//  STATS
+// ═══════════════════════════════════════════════
+function updateStats(){
+  const assigned=classes.filter(c=>c.group>0&&c.group<9);
+  const rejected=classes.filter(c=>c.group===9);
+  const ptcls=assigned.reduce((s,c)=>s+c.particles,0);
+  document.getElementById('statTotal').textContent=classes.length;
+  document.getElementById('statAssigned').textContent=assigned.length;
+  document.getElementById('statRejected').textContent=rejected.length;
+  document.getElementById('statParticles').textContent=ptcls>999?(ptcls/1000).toFixed(1)+'k':ptcls;
+  document.getElementById('statusParticles').textContent=`${ptcls.toLocaleString()} particles assigned`;
+  document.getElementById('statusIter').textContent=`${classes.length} classes`;
+}
+function setStatus(m){document.getElementById('statusMsg').textContent=m;}
+function setBadge(ok,label){
+  const b=document.getElementById('mrcBadge');b.style.display='inline';
+  b.className='mrc-badge '+(ok?'mrc-ok':'mrc-warn');b.textContent=ok?`✓ MRC: ${label}`:`⚠ ${label}`;
+}
+
+// ═══════════════════════════════════════════════
+//  CONTROLS
+// ═══════════════════════════════════════════════
+function updateThresh(v){threshDist=parseFloat(v);document.getElementById('threshVal').textContent=threshDist.toFixed(1)+'%';}
+function updateResThresh(v){threshRes=parseInt(v);document.getElementById('resThreshVal').textContent=threshRes+' Å';}
+function updateContrast(v){contrastSigma=parseFloat(v);document.getElementById('contrastVal').textContent=contrastSigma.toFixed(1);rerenderAll();}
+function zoom(dir){cols=Math.max(2,Math.min(12,cols-dir));document.getElementById('zoomLabel').textContent=cols+'×';document.getElementById('classGrid').style.setProperty('--cols',cols);}
+function setView(v){document.getElementById('filterBy').value=v;renderGrid();}
+
+// ═══════════════════════════════════════════════
+//  EXPORT MODAL
+// ═══════════════════════════════════════════════
+function openExportModal(){
+  const body=document.getElementById('modalBody');
+  const grouped=[];
+  for(let g=1;g<=8;g++){
+    const cls=classes.filter(c=>c.group===g);
+    if(cls.length) grouped.push({g,cls});
+  }
+  if(!grouped.length){alert('No classes assigned to any group yet!');return;}
+
+  let html=`<p class="modal-note">Each group will be exported as a separate <code>particles_group_N.star</code> file containing only the particles belonging to those classes. `;
+  if(particlesStarText){
+    html+=`Particle lines are filtered from the loaded particles.star.`;
+  } else {
+    html+=`<b>Note:</b> You loaded a <i>model.star</i>. To get real particle entries you also need to load the corresponding <code>particles.star</code>. Without it, a stub STAR with class numbers only will be exported.`;
+  }
+  html+=`</p><div style="margin-top:4px;display:flex;flex-direction:column;gap:6px">`;
+  grouped.forEach(({g,cls})=>{
+    const ptcls=cls.reduce((s,c)=>s+c.particles,0);
+    html+=`<div class="export-group-row">
+      <input type="checkbox" class="export-check" id="exp_g${g}" checked>
+      <div class="export-swatch" style="background:${GROUP_COLORS[g]}"></div>
+      <span class="export-group-name">${groupNames[g]}</span>
+      <span class="export-group-count">${cls.length} classes · ${ptcls.toLocaleString()} ptcls</span>
+    </div>`;
+  });
+  html+=`</div>`;
+  body.innerHTML=html;
+  document.getElementById('exportModal').classList.add('open');
+}
+function closeExportModal(){document.getElementById('exportModal').classList.remove('open');}
+
+async function doExport(){
+  const classNums={}; // group -> Set of RELION class numbers (_rlnClassNumber values)
+  for(let g=1;g<=8;g++){
+    const cb=document.getElementById(`exp_g${g}`);
+    if(cb&&cb.checked){
+      // Use rlnClassNumber if available (particles.star load), otherwise fall back to index (model.star load)
+      classNums[g]=new Set(
+        classes.filter(c=>c.group===g).map(c=>c.rlnClassNumber!==undefined?c.rlnClassNumber:c.index)
+      );
+    }
+  }
+  if(!Object.keys(classNums).length){alert('Select at least one group');return;}
+
+  if(particlesStarText){
+    // Filter real particles
+    await exportParticlesFromStar(classNums);
+  } else {
+    // Stub export
+    exportStubStar(classNums);
+  }
+  closeExportModal();
+}
+
+async function exportParticlesFromStar(classNums) {
+  // ── Split the RELION STAR file into named data blocks ──────────────
+  // A RELION 3.x particles.star looks like:
+  //   # version 30001          ← preamble
+  //   data_optics               ← block 1
+  //     loop_ ...
+  //   # version 30001
+  //   data_particles            ← block 2
+  //     loop_ ...
+  //     <particle rows>
+  //
+  // Strategy: walk every line, group into blocks by "data_" sentinel.
+  // Keep ALL non-particles blocks verbatim; filter particles block by class.
+
+  const lines = particlesStarText.split('\n');
+
+  // ---- pass 1: split into blocks ----------------------------------------
+  // Each entry: { header: string (lines before any data rows), dataLines: [] }
+  // "header" = the data_ line + loop_ + all _rln column defs
+  const rawBlocks = [];  // { startLine, name }
+  const preambleLines = [];
+  let inAnyBlock = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i].trim();
+    if (l.startsWith('data_')) {
+      rawBlocks.push({ startLine: i, name: l });
+      inAnyBlock = true;
+    } else if (!inAnyBlock) {
+      preambleLines.push(lines[i]);
+    }
+  }
+
+  // Slice line ranges per block
+  const blockSlices = rawBlocks.map((b, bi) => {
+    const end = bi + 1 < rawBlocks.length ? rawBlocks[bi + 1].startLine : lines.length;
+    return { name: b.name, lines: lines.slice(b.startLine, end) };
+  });
+
+  // ---- pass 2: parse data_particles block --------------------------------
+  const particlesBlock = blockSlices.find(
+    b => b.name === 'data_particles' || b.name === 'data_'
+  );
+  if (!particlesBlock) { alert('data_particles block not found in STAR file.'); return; }
+
+  let colMap = {}, colIdx = 0, inLoop = false;
+  const particleHeaderLines = []; // data_particles + loop_ + column defs
+  const particleDataLines   = []; // actual particle rows
+
+  for (const raw of particlesBlock.lines) {
+    const l = raw.trim();
+    if (!l || l.startsWith('#')) { particleHeaderLines.push(raw); continue; }
+    if (l === 'loop_')           { inLoop = true;  particleHeaderLines.push(raw); continue; }
+    if (inLoop && l.startsWith('_rln')) {
+      colMap[l.split(/\s+/)[0]] = colIdx++;
+      particleHeaderLines.push(raw);
+      continue;
+    }
+    if (inLoop) {
+      // first non-column line marks start of data rows
+      particleDataLines.push(raw);
+    } else {
+      particleHeaderLines.push(raw);
+    }
+  }
+
+  const clsCol = colMap['_rlnClassNumber'];
+  if (clsCol === undefined) {
+    alert('_rlnClassNumber not found in data_particles loop.\nIs this really a particles.star from RELION Class2D?');
+    return;
+  }
+
+  // ---- pass 3: assemble output files ------------------------------------
+  // All blocks that are NOT data_particles go in verbatim (optics etc.)
+  const verbatimBlocks = blockSlices
+    .filter(b => b !== particlesBlock)
+    .map(b => b.lines.join('\n'))
+    .join('\n\n');
+
+  const preamble     = preambleLines.join('\n').trimEnd();
+  const ptclHeader   = particleHeaderLines.join('\n');
+
+  for (const [g, indices] of Object.entries(classNums)) {
+    const kept = particleDataLines.filter(row => {
+      const t = row.trim();
+      if (!t) return false;
+      const p = t.split(/\s+/);
+      return indices.has(parseInt(p[clsCol] || '0'));
+    });
+
+    // Final file structure matches RELION conventions exactly:
+    //   preamble (version comment)
+    //   <blank line>
+    //   data_optics block
+    //   <blank line>
+    //   # version comment (if present in original)
+    //   <blank line>
+    //   data_particles header
+    //   particle rows
+    //   <trailing newline>
+    const parts = [];
+    if (preamble)         parts.push(preamble);
+    if (verbatimBlocks.trim()) parts.push(verbatimBlocks.trimEnd());
+    parts.push(ptclHeader);
+    if (kept.length)      parts.push(kept.join('\n'));
+    parts.push('');  // ensure trailing newline
+
+    const out = parts.join('\n\n');
+    downloadText(out, `particles_${groupNames[g].replace(/\s+/g, '_')}.star`);
+    await new Promise(r => setTimeout(r, 150));
+  }
+
+  const totalKept = Object.values(classNums).reduce((sum, indices) =>
+    sum + particleDataLines.filter(row => {
+      const p = row.trim().split(/\s+/);
+      return indices.has(parseInt(p[clsCol] || '0'));
+    }).length, 0);
+
+  setStatus(`Exported ${Object.keys(classNums).length} group(s) — ${totalKept.toLocaleString()} particles total`);
+}
+
+function exportStubStar(classNums){
+  for(const [g, indices] of Object.entries(classNums)){
+    const cls=classes.filter(c=>indices.has(c.index));
+    let star=`# RELION particles.star export\n# Group ${g}: ${groupNames[g]}\n# Generated by ClassSelect\n\ndata_particles\n\nloop_\n_rlnClassNumber #1\n_rlnClassDistribution #2\n_rlnEstimatedResolution #3\n_rlnNrOfSignificantSamples #4\n`;
+    cls.forEach(c=>{star+=`${c.index}\t${(c.dist/100).toFixed(6)}\t${c.res<900?c.res.toFixed(2):'999.00'}\t${c.particles}\n`;});
+    downloadText(star,`particles_${groupNames[g].replace(/\s+/g,'_')}.star`);
+  }
+  setStatus(`Exported ${Object.keys(classNums).length} stub group file(s) — load a particles.star for full particle entries`);
+}
+
+function downloadText(text, filename){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'}));
+  a.download=filename; a.click();
+}
+
+// ═══════════════════════════════════════════════
+//  DEMO
+// ═══════════════════════════════════════════════
+function loadDemo(){
+  mrcLoaded=false;mrcSlices={};classes=[];
+  const rng=seededRand(42);
+  for(let i=1;i<=50;i++){
+    const dist=Math.pow(rng(),1.8)*18+0.2;
+    classes.push({index:i,sliceIndex:i,group:0,dist:parseFloat(dist.toFixed(2)),
+      res:parseFloat((6+rng()*30).toFixed(1)),particles:Math.round(dist*1100+rng()*500),
+      snr:0.05+rng()*0.5,rot:i*1.618,ecc:0.35+rng()*0.6});
+  }
+  document.getElementById('filePath').textContent='demo_run1_it025_model.star';
+  setBadge(false,'DEMO — synthetic images');
+
+  // Generate two demo similarity matrices
+  const n = 50;
+  simMatrices = [];
+  // Matrix 1: "Cross-correlation" — classes close in index are more similar
+  const mat1data = new Float32Array(n*n);
+  const mat2data = new Float32Array(n*n);
+  const rng2 = seededRand(99);
+  for (let r=0;r<n;r++) for (let c=0;c<n;c++) {
+    const dist = Math.abs(r-c);
+    mat1data[r*n+c] = r===c ? 1 : Math.max(0, 1 - dist/15 + (rng2()-0.5)*0.2);
+    mat2data[r*n+c] = r===c ? 1 : Math.max(0, Math.exp(-dist*dist/40) * (0.6+rng2()*0.4));
+  }
+  simMatrices.push({ name:'Cross-Correlation', size:n, classes:Array.from({length:n},(_,i)=>i+1), data:mat1data });
+  simMatrices.push({ name:'Euler Angle Dist.', size:n, classes:Array.from({length:n},(_,i)=>i+1), data:mat2data });
+  activeMatrixIdx = 0;
+
+  hideWelcome();
+  renderGroupPalette();
+  renderMatrixSelector();
+  renderHotkeyBar();
+  renderGrid();
+  setStatus('Demo — click a class, then press 1–8 to assign groups, 9 to reject, 0 to clear');
+}
+
+showWelcome();
+</script>
+
+<!-- ═══════════  FORMAT HELP MODAL  ═══════════ -->
+<div id="formatHelpModal" style="position:fixed;inset:0;z-index:900;background:rgba(2,10,22,0.88);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s;" class="">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;width:620px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.1em;color:var(--gold)">SIMILARITY MATRIX FILE FORMAT</span>
+      <button class="btn btn-ghost" style="padding:2px 7px;font-size:10px" onclick="closeFormatHelp()">✕</button>
+    </div>
+    <div style="padding:18px 20px;overflow-y:auto;font-size:12px;line-height:1.8;color:var(--text-dim);display:flex;flex-direction:column;gap:14px">
+      <p>The similarity matrix file is a plain <code style="color:var(--gold)">.csv</code> (comma-separated) or <code style="color:var(--gold)">.tsv</code> (tab-separated) file. Values should be in the range <b>0–1</b> (higher = more similar). Values outside this range are auto-normalised.</p>
+
+      <div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:6px">MINIMAL FORMAT (no header, N×N matrix, classes assumed 1…N):</div>
+        <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;color:var(--text);overflow-x:auto">1.000,0.823,0.341,0.102
+0.823,1.000,0.512,0.089
+0.341,0.512,1.000,0.774
+0.102,0.089,0.774,1.000</pre>
+      </div>
+
+      <div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:6px">WITH CLASS NUMBER HEADER (first row = class numbers, first col = class numbers):</div>
+        <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;color:var(--text);overflow-x:auto">class,1,3,7,12
+1,    1.000,0.823,0.341,0.102
+3,    0.823,1.000,0.512,0.089
+7,    0.341,0.512,1.000,0.774
+12,   0.102,0.089,0.774,1.000</pre>
+        <p style="font-size:11px">Class numbers in the header/row-labels do <b>not</b> need to be contiguous or start at 1 — they map directly to the RELION class numbers in your <code>_model.star</code>.</p>
+      </div>
+
+      <div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:6px">MULTIPLE MATRICES IN ONE FILE (separated by <code># name</code> section headers):</div>
+        <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;color:var(--text);overflow-x:auto"># Cross-Correlation
+class,1,3,7,12
+1,1.000,0.823,0.341,0.102
+3,0.823,1.000,0.512,0.089
+7,0.341,0.512,1.000,0.774
+12,0.102,0.089,0.774,1.000
+
+# Euler Angle Distance
+class,1,3,7,12
+1,1.000,0.650,0.200,0.050
+3,0.650,1.000,0.430,0.110
+7,0.200,0.430,1.000,0.880
+12,0.050,0.110,0.880,1.000</pre>
+        <p style="font-size:11px">Each <code style="color:var(--gold)"># Name</code> line starts a new matrix block. Matrices are separated by a blank line. You can include as many matrices as you like — switch between them in the sidebar.</p>
+      </div>
+
+      <div style="background:rgba(2,61,107,0.2);border:1px solid var(--navy-light);border-radius:6px;padding:10px;font-size:11px">
+        <b style="color:var(--gold)">Tip:</b> The matrix does not need to cover all classes — only classes present in both the matrix and your loaded <code>_model.star</code> will show suggestions. The diagonal (self-similarity) is always ignored.
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+#formatHelpModal.open{opacity:1!important;pointer-events:all!important;}
+</style>
+
+</body>
+</html>
