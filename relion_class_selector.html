@@ -4,21 +4,43 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RELION 2D Class Selector</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='6'%20fill='%23DB9D47'/%3E%3Ctext%20x='16'%20y='23'%20font-family='Arial,Helvetica,sans-serif'%20font-size='15'%20font-weight='700'%20letter-spacing='-1'%20text-anchor='middle'%20fill='%231a1206'%3ECS%3C/text%3E%3C/svg%3E">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Rajdhani:wght@400;500;600;700&display=swap');
+/* ===== CRYO-EM SUITE — CANONICAL DESIGN TOKENS (shared across all tools) ===== */
 :root {
-  --navy:#023D6B; --burgundy:#470024; --gold:#DB9D47;
-  --navy-light:#0a5a9c; --navy-dark:#011f38;
-  --burgundy-light:#6b0035; --gold-light:#f0b86a;
-  --bg:#06121e; --surface:#0a1e2f; --surface2:#0f2740; --surface3:#162f4a;
-  --border:rgba(2,61,107,0.4); --text:#c8dde8; --text-dim:#6b8fa8; --text-muted:#3d5a6e;
-  --rejected:rgba(71,0,36,0.2); --radius:6px;
-  /* group colours — 0=unset, 1-8=groups, 9=rejected */
-  --g0:#3d5a6e; --g1:#DB9D47; --g2:#5aabde; --g3:#7ecb8f; --g4:#c97fd4;
+  --navy:#023D6B; --burgundy:#470024;
+  --gold:#DB9D47; --gold-bright:#f0b85a; --gold-deep:#a8741f;
+  --bg:#070d14; --surface-1:#0c1622; --surface-2:#111f2f; --surface-3:#18293c; --surface-inset:#050a11;
+  --border:#23394f; --border-strong:#37577a;
+  --text:#d4e3f3; --text-dim:#9cb4cd; --text-faint:#6a87a3; --text-on-accent:#140f04;
+  --accent:var(--gold); --accent-bg:rgba(219,157,71,.10);
+  --danger:#ec6a7e; --danger-bg:rgba(236,106,126,.12); --success:#4fce86; --info:#54bfd0; --warn:#ecc35a;
+  --focus:#6cb0ff;
+  --radius-sm:2px; --radius:3px; --radius-lg:6px;
+  --font-ui:'Rajdhani',system-ui,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono','JetBrains Mono',ui-monospace,monospace;
+  --ring:0 0 0 3px rgba(108,176,255,.45); --t-fast:120ms ease;
+  /* — aliases: map ClassSelect's original names onto the shared tokens — */
+  --navy-light:var(--border-strong); --navy-dark:#011f38;
+  --burgundy-light:#6b0035; --gold-light:var(--gold-bright);
+  --surface:var(--surface-1); --surface2:var(--surface-2); --surface3:var(--surface-3);
+  --text-muted:var(--text-faint); --rejected:rgba(71,0,36,0.25);
+  /* group colours — tool-specific, layered on top (0=unset, 1-8=groups, 9=rejected) */
+  --g0:#6a87a3; --g1:#DB9D47; --g2:#5aabde; --g3:#7ecb8f; --g4:#c97fd4;
   --g5:#e07878; --g6:#78c4e0; --g7:#e0c178; --g8:#a0a0c8; --g9:#6b0035;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+body{font-family:var(--font-ui);background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+:focus-visible{outline:none;box-shadow:var(--ring);border-radius:var(--radius-sm);}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+/* ===== suite scrollbars ===== */
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:var(--surface-inset)}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:var(--text-faint)}
+::-webkit-scrollbar-corner{background:var(--surface-inset)}
+@supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:var(--border-strong) var(--surface-inset)}}
 
 /* ── WELCOME ─────────────────────────────── */
 #welcomeScreen{position:absolute;inset:0;z-index:500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
@@ -43,20 +65,23 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);heig
 .progress-fill{height:100%;background:var(--gold);border-radius:2px;transition:width 0.1s;width:0%;}
 
 /* ── TOPBAR ──────────────────────────────── */
-.topbar{display:flex;align-items:center;padding:0 16px;height:52px;background:var(--surface);border-bottom:1px solid var(--border);gap:12px;flex-shrink:0;}
-.logo{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--gold);letter-spacing:0.08em;display:flex;align-items:center;gap:8px;}
-.logo-badge{background:var(--navy);border:1px solid var(--navy-light);padding:2px 7px;border-radius:3px;font-size:10px;color:var(--text-dim);letter-spacing:0.12em;}
+.topbar{display:flex;align-items:center;padding:0 14px;height:52px;background:linear-gradient(180deg,var(--surface-2),var(--surface-1));border-bottom:1px solid var(--border-strong);gap:10px;flex-shrink:0;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:26px;height:26px;border-radius:var(--radius-sm);background:radial-gradient(circle at 30% 30%,var(--gold-bright),var(--gold-deep));box-shadow:0 0 0 1px rgba(0,0,0,.4) inset;display:flex;align-items:center;justify-content:center;font-family:var(--font-ui);font-size:13px;font-weight:700;letter-spacing:.5px;color:#1a1206;flex-shrink:0;}
+.logo-name{font-family:var(--font-ui);font-weight:700;font-size:18px;letter-spacing:.10em;text-transform:uppercase;color:var(--text);}
+.logo-name b{color:var(--gold);font-weight:700;}
+.logo-badge{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);letter-spacing:0.04em;}
 .topbar-sep{width:1px;height:24px;background:var(--border);}
 .file-path{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .mrc-badge{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 7px;border-radius:3px;border:1px solid;white-space:nowrap;}
 .mrc-ok{border-color:rgba(0,200,120,0.4);color:#0c9;background:rgba(0,200,120,0.07);}
 .mrc-warn{border-color:rgba(200,100,0,0.4);color:#e08030;background:rgba(200,100,0,0.07);}
 .topbar-actions{display:flex;gap:6px;margin-left:auto;}
-.btn{font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;padding:5px 13px;border-radius:var(--radius);border:1px solid;cursor:pointer;transition:all 0.15s;letter-spacing:0.02em;}
+.btn{font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:0 12px;min-height:30px;display:inline-flex;align-items:center;gap:6px;border-radius:var(--radius);border:1px solid;cursor:pointer;transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast);}
 .btn-ghost{background:transparent;border-color:var(--border);color:var(--text-dim);}
-.btn-ghost:hover{border-color:var(--navy-light);color:var(--text);}
-.btn-gold{background:var(--gold);border-color:var(--gold-light);color:var(--bg);font-weight:600;}
-.btn-gold:hover{background:var(--gold-light);}
+.btn-ghost:hover{border-color:var(--border-strong);color:var(--text);background:var(--surface-2);}
+.btn-gold{background:var(--gold);border-color:var(--gold-deep);color:var(--text-on-accent);font-weight:600;}
+.btn-gold:hover{background:var(--gold-bright);border-color:var(--gold);}
 .btn-navy{background:var(--navy);border-color:var(--navy-light);color:#fff;}
 .btn-navy:hover{background:var(--navy-light);}
 .btn-danger{background:transparent;border-color:var(--burgundy-light);color:#c06;}
@@ -320,8 +345,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 
 <!-- ═══════════  TOPBAR  ═══════════ -->
 <div class="topbar">
-  <div class="logo"><span>CLASS</span><span class="logo-badge">RELION 2D</span></div>
+  <div class="logo"><div class="logo-icon">CS</div><div class="logo-name"><b>CLASS</b>·SELECT</div></div>
   <div class="topbar-sep"></div>
+  <div class="logo-badge">RELION 2D class browser &amp; exporter</div>
   <div class="file-path" id="filePath">No file loaded</div>
   <span class="mrc-badge mrc-warn" id="mrcBadge" style="display:none"></span>
   <div class="topbar-actions">
@@ -961,11 +987,12 @@ async function loadMrc(file) {
   const mode=dv.getInt32(12,true), nsymbt=dv.getInt32(92,true), offset=1024+nsymbt;
   if (nx<=0||ny<=0||nz<=0||nx>4096||ny>4096) throw new Error(`Bad dims ${nx}×${ny}×${nz}`);
   mrcBoxSize=nx; mrcSlices={};
-  const pc=nx*ny, bpp=mode===2?4:mode===1?2:1;
+  const pc=nx*ny, bpp=mode===2?4:mode===1?2:mode===6?2:1;
   for (let iz=0;iz<nz;iz++) {
     const px=new Float32Array(pc), s=offset+iz*pc*bpp;
     if (mode===2) px.set(new Float32Array(buf,s,pc));
     else if (mode===1){const v=new Int16Array(buf,s,pc);for(let i=0;i<pc;i++)px[i]=v[i];}
+    else if (mode===6){const v=new Uint16Array(buf,s,pc);for(let i=0;i<pc;i++)px[i]=v[i];}
     else {const v=new Uint8Array(buf,s,pc);for(let i=0;i<pc;i++)px[i]=v[i];}
     mrcSlices[iz+1]=px;
     if (iz%10===0) setProgress(50+Math.round(iz/nz*45));
@@ -1038,7 +1065,7 @@ function parseModelStar(text) {
       const distRaw=get('_rlnClassDistribution'); if(distRaw===undefined) continue;
       const dist=parseFloat(distRaw); if(isNaN(dist)) continue;
       const res=parseFloat(get('_rlnEstimatedResolution')||'999');
-      const ptcl=parseInt(get('_rlnNrOfSignificantSamples')||get('_rlnGroupNrParticles')||'0');
+      const ptcl=parseInt(get('_rlnGroupNrParticles')||'0');
       const refImg=get('_rlnReferenceImage')||'';
       const sm=refImg.match(/^(\d+)@/);
       const sliceIndex=sm?parseInt(sm[1]):result.length+1;
@@ -1531,7 +1558,7 @@ async function doExport(){
     if(cb&&cb.checked){
       // Use rlnClassNumber if available (particles.star load), otherwise fall back to index (model.star load)
       classNums[g]=new Set(
-        classes.filter(c=>c.group===g).map(c=>c.rlnClassNumber!==undefined?c.rlnClassNumber:c.index)
+        classes.filter(c=>c.group===g).map(c=>c.rlnClassNumber!==undefined?c.rlnClassNumber:c.sliceIndex)
       );
     }
   }
@@ -1655,7 +1682,7 @@ async function exportParticlesFromStar(classNums) {
     parts.push('');  // ensure trailing newline
 
     const out = parts.join('\n\n');
-    downloadText(out, `particles_${groupNames[g].replace(/\s+/g, '_')}.star`);
+    downloadText(out, `particles_${g}_${groupNames[g].replace(/\s+/g, '_')}.star`);
     await new Promise(r => setTimeout(r, 150));
   }
 
@@ -1673,7 +1700,7 @@ function exportStubStar(classNums){
     const cls=classes.filter(c=>indices.has(c.index));
     let star=`# RELION particles.star export\n# Group ${g}: ${groupNames[g]}\n# Generated by ClassSelect\n\ndata_particles\n\nloop_\n_rlnClassNumber #1\n_rlnClassDistribution #2\n_rlnEstimatedResolution #3\n_rlnNrOfSignificantSamples #4\n`;
     cls.forEach(c=>{star+=`${c.index}\t${(c.dist/100).toFixed(6)}\t${c.res<900?c.res.toFixed(2):'999.00'}\t${c.particles}\n`;});
-    downloadText(star,`particles_${groupNames[g].replace(/\s+/g,'_')}.star`);
+    downloadText(star,`particles_${g}_${groupNames[g].replace(/\s+/g,'_')}.star`);
   }
   setStatus(`Exported ${Object.keys(classNums).length} stub group file(s) — load a particles.star for full particle entries`);
 }

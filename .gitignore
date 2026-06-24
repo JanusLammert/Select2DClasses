@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Test / working data (never commit real cryo-EM data)
+*.mrc
+*.mrcs
+*.star
+*.csv
+*.tsv
+
+# Editor
+.vscode/
+.idea/
